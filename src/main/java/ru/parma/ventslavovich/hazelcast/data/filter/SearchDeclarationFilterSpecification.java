@@ -12,6 +12,8 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class SearchDeclarationFilterSpecification {
 
@@ -35,7 +37,19 @@ public class SearchDeclarationFilterSpecification {
             predicates.add(Predicates.in("idStatus", filter.getIdStatus().toArray(new Integer[0])));
         }
         if (!StringUtils.isEmpty(filter.getSearch())) {
-            predicates.add(Predicates.ilike("number", "%"+filter.getSearch()+"%"));
+            predicates.add(Predicates.and(Stream.of(filter.getSearch().trim().split(" "))
+                    .map(s -> {
+                        final String search = "%"+s+"%";
+                        return Predicates.or(
+                        Stream.of("number", "customDeclNumber", "appNumber", "technicalReglaments", "group", "productSingleList", "declType", "declSchema", "declObjectType")
+                                .map(column -> Predicates.ilike(column, search))
+                                .collect(Collectors.toList())
+                                .toArray(new Predicate[0])
+                        );
+                    })
+                    .collect(Collectors.toList())
+                    .toArray(new Predicate[0])
+            ));
         }
 
         return Predicates.and(predicates.toArray(new Predicate[0]));

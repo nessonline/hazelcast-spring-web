@@ -7,6 +7,7 @@ import com.hazelcast.map.IMap;
 import com.hazelcast.query.PagingPredicate;
 import com.hazelcast.query.Predicate;
 import com.hazelcast.query.impl.predicates.PagingPredicateImpl;
+import org.jeasy.random.EasyRandom;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,9 +21,8 @@ import ru.parma.ventslavovich.hazelcast.data.filter.SearchDeclarationFilterSpeci
 import ru.parma.ventslavovich.hazelcast.data.filter.SearchDeclarationPageFilter;
 
 import javax.annotation.PostConstruct;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
+import java.time.LocalDate;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
@@ -58,11 +58,23 @@ public class SearchDeclarationRepository {
         log.info(String.format("Clear hazelcast %s. worked %s ms", hazelcastMap.getName(), (System.currentTimeMillis() - start)));
         if (size < 1l) return;
         start = System.currentTimeMillis();
+        EasyRandom generator = new EasyRandom();
         Stream.iterate(1, i -> i + 1).limit(size).parallel().forEach(id -> {
-            SearchDeclaration entity = new SearchDeclaration();
+            SearchDeclaration entity = generator.nextObject(SearchDeclaration.class);
             entity.setId(Long.valueOf(id));
             entity.setIdStatus(new Random().nextInt(9)+1);
             entity.setNumber("declaration-"+(id));
+            entity.setAppStatus(new Random().nextInt(9)+1);
+            entity.setAppNumber("application-"+(id));
+            List<LocalDate> dates = new ArrayList<>();
+            dates.add(entity.getAppDate());
+            dates.add(entity.getDeclDate());
+            dates.add(entity.getDeclEndDate());
+            Collections.sort(dates);
+            entity.setAppDate(dates.get(0));
+            entity.setDeclDate(dates.get(1));
+            entity.setDeclEndDate(dates.get(2));
+            entity.setDeclType(String.valueOf(new Random().nextInt(4)+1));
             hazelcastMap.put(entity.getId(), entity);
         });
         log.info(String.format("Fill hazelcast %s size %s. worked %s ms", hazelcastMap.getName(), size, (System.currentTimeMillis() - start)));
@@ -70,16 +82,16 @@ public class SearchDeclarationRepository {
     }
 
     public List<SearchDeclaration> findAll(SearchDeclarationPageFilter filter) {
-        return executeAndLog("findAll", filter, t -> {
-            PagingPredicate predicate = SearchDeclarationFilterSpecification.toPagingPredicate(t);
-            return Lists.newArrayList(hazelcastMap.values(predicate));
+        PagingPredicate predicate = SearchDeclarationFilterSpecification.toPagingPredicate(filter);
+        return executeAndLog("findAll", predicate, t -> {
+            return Lists.newArrayList(hazelcastMap.values(t));
         });
     }
 
     public Long countAll(SearchDeclarationFilter filter) {
-        return executeAndLog("countAll", filter, t -> {
-            Predicate predicate = SearchDeclarationFilterSpecification.toPredicate(t);
-            return hazelcastMap.aggregate(Aggregators.count(), predicate);
+        Predicate predicate = SearchDeclarationFilterSpecification.toPredicate(filter);
+        return executeAndLog("countAll", predicate, t -> {
+            return hazelcastMap.aggregate(Aggregators.count(), t);
         });
     }
 
@@ -96,11 +108,8 @@ public class SearchDeclarationRepository {
     }
 
     public SearchDeclaration saveOne(SearchDeclaration entity) {
+        if (entity.getId() == null) entity.setId(generateId());
         return executeAndLog("saveOne", entity, t -> {
-            if (t.getId() == null || t.getId() <= 0) {
-                Map.Entry<Long, SearchDeclaration> max = hazelcastMap.aggregate(Aggregators.maxBy("id"));
-                t.setId((max != null ? max.getKey() : 0)+1);
-            }
             hazelcastMap.put(t.getId(), t);
             return findOne(t.getId());
         });
@@ -110,6 +119,11 @@ public class SearchDeclarationRepository {
         return executeAndLog("deleteOne", id, t -> {
             return hazelcastMap.remove(t) != null;
         });
+    }
+
+    private Long generateId() {
+        Map.Entry<Long, SearchDeclaration> max = hazelcastMap.aggregate(Aggregators.maxBy("id"));
+        return Optional.ofNullable(max).map(es -> es.getKey()+1l).orElse(1l);
     }
 
     private <T, R> R executeAndLog(String method, T object, Function<T, R> function) {
