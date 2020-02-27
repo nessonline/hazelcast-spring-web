@@ -6,7 +6,10 @@ spring:
     description: "@project.description@"
     version: "@project.version@"
 
-hazelcast.declaration-map.init: true
+hazelcast:
+  declaration-map:
+    init: true
+    size: 1_000_000
 
 logging.level:
   ru.parma.ventslavovich.hazelcast: debug

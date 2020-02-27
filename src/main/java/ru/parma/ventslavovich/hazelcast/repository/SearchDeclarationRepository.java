@@ -29,6 +29,8 @@ import java.util.stream.Stream;
 @Component
 public class SearchDeclarationRepository {
 
+    private static final String MAP_NAME = "declaration-map";
+
     private final IMap<Long, SearchDeclaration> hazelcastMap;
 
     private final Logger log = LoggerFactory.getLogger(SearchDeclarationRepository.class);
@@ -36,9 +38,12 @@ public class SearchDeclarationRepository {
     @Value("${hazelcast.declaration-map.init}")
     private boolean init;
 
+    @Value("${hazelcast.declaration-map.size}")
+    private long size;
+
     @Autowired
     public SearchDeclarationRepository(@Qualifier("hazelcastInstance") HazelcastInstance hazelcastInstance) {
-        hazelcastMap = hazelcastInstance.getMap("declaration-map");
+        hazelcastMap = hazelcastInstance.getMap(MAP_NAME);
         hazelcastMap.addIndex("id", true);
         hazelcastMap.addIndex("idStatus", true);
         hazelcastMap.addIndex("number", true);
@@ -48,18 +53,19 @@ public class SearchDeclarationRepository {
     private void init() {
         if (!init) return;
         long start = System.currentTimeMillis();
-        log.info(String.format("Start init hazelcast %s", hazelcastMap.getName()));
+        log.info(String.format("Start init hazelcast %s size %s", hazelcastMap.getName(), size));
         hazelcastMap.clear();
-        log.info(String.format("Clear hazelcast %s. Working %s ms.", hazelcastMap.getName(), (System.currentTimeMillis() - start)));
+        log.info(String.format("Clear hazelcast %s. worked %s ms", hazelcastMap.getName(), (System.currentTimeMillis() - start)));
+        if (size < 1l) return;
         start = System.currentTimeMillis();
-        Stream.iterate(1, i -> i + 1).limit(1_000_000).parallel().forEach(id -> {
+        Stream.iterate(1, i -> i + 1).limit(size).parallel().forEach(id -> {
             SearchDeclaration entity = new SearchDeclaration();
             entity.setId(Long.valueOf(id));
             entity.setIdStatus(new Random().nextInt(9)+1);
             entity.setNumber("declaration-"+(id));
             hazelcastMap.put(entity.getId(), entity);
         });
-        log.info(String.format("Fill hazelcast %s. Working %s ms.", hazelcastMap.getName(), (System.currentTimeMillis() - start)));
+        log.info(String.format("Fill hazelcast %s size %s. worked %s ms", hazelcastMap.getName(), size, (System.currentTimeMillis() - start)));
         log.info(String.format("Finish init hazelcast %s", hazelcastMap.getName()));
     }
 
