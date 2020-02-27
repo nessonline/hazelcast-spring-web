@@ -1,0 +1,12 @@
+spring:
+  main:
+    allow-bean-definition-overriding: true
+  application:
+    name: "@project.name@"
+    description: "@project.description@"
+    version: "@project.version@"
+
+hazelcast.declaration-map.init: true
+
+logging.level:
+  ru.parma.ventslavovich.hazelcast: debug
