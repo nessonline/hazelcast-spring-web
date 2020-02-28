@@ -18,7 +18,7 @@ import java.util.stream.Stream;
 public class SearchDeclarationFilterSpecification {
 
     public static PagingPredicate toPagingPredicate(SearchDeclarationPageFilter filter) {
-        PagingPredicate predicate = Predicates.pagingPredicate(
+        PagingPredicate predicate = new PagingPredicate(
                 toPredicate(filter),
                 new AscendingIdComparator(),
                 filter.getLimit());

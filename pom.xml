@@ -21,7 +21,7 @@
     <properties>
         <java.version>13</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <hazelcast.version>4.0-SNAPSHOT</hazelcast.version>
+        <hazelcast.version>3.12.6</hazelcast.version>
         <springfox-swagger.version>2.9.2</springfox-swagger.version>
         <easy-random.version>4.0.0</easy-random.version>
     </properties>

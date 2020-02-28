@@ -3,10 +3,9 @@ package ru.parma.ventslavovich.hazelcast.repository;
 import com.google.common.collect.Lists;
 import com.hazelcast.aggregation.Aggregators;
 import com.hazelcast.core.HazelcastInstance;
-import com.hazelcast.map.IMap;
+import com.hazelcast.core.IMap;
 import com.hazelcast.query.PagingPredicate;
 import com.hazelcast.query.Predicate;
-import com.hazelcast.query.impl.predicates.PagingPredicateImpl;
 import org.jeasy.random.EasyRandom;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -158,8 +157,8 @@ public class SearchDeclarationRepository {
 
     private String logPredicate(Predicate predicate) {
         if (predicate == null) return null;
-        if (predicate instanceof PagingPredicateImpl) {
-            PagingPredicateImpl pagingPredicate = (PagingPredicateImpl)predicate;
+        if (predicate instanceof PagingPredicate) {
+            PagingPredicate pagingPredicate = (PagingPredicate)predicate;
             return String.format(
                     "predicate = %s page = %s pageSize = %s",
                     pagingPredicate.getPredicate().toString(),
