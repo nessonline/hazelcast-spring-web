@@ -74,6 +74,8 @@ public class SearchDeclaration implements Serializable, Comparable<SearchDeclara
     private String manufacterOgrn;
     @ApiModelProperty(value = "Номер аттестата аккредитации органа по сертификации", position = 30)
     private String certificationAuthorityAttestatRegNumber;
+    @ApiModelProperty(value = "Признак активности", position = 31)
+    private Boolean active;
 
     @Override
     public int compareTo(SearchDeclaration other) {

@@ -2,6 +2,7 @@ package ru.parma.ventslavovich.hazelcast;
 
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Profile;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.TestPropertySource;
 import ru.parma.ventslavovich.hazelcast.config.ApplicationConfig;
@@ -13,6 +14,7 @@ import java.lang.annotation.Target;
 
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
+@Profile("server")
 @Import(ApplicationConfig.class)
 @TestPropertySource(properties = "hazelcast.declaration-map.init=false")
 @SpringBootTest

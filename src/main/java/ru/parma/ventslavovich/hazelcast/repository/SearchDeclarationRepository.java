@@ -22,8 +22,11 @@ import ru.parma.ventslavovich.hazelcast.data.filter.SearchDeclarationPageFilter;
 import javax.annotation.PostConstruct;
 import java.time.LocalDate;
 import java.util.*;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ForkJoinPool;
 import java.util.function.Function;
-import java.util.stream.Stream;
+import java.util.stream.Collectors;
+import java.util.stream.LongStream;
 
 @Component
 public class SearchDeclarationRepository {
@@ -46,10 +49,12 @@ public class SearchDeclarationRepository {
         hazelcastMap.addIndex("id", true);
         hazelcastMap.addIndex("idStatus", true);
         hazelcastMap.addIndex("number", true);
+        hazelcastMap.addIndex("declDate", true);
+        hazelcastMap.addIndex("active", false);
     }
 
     @PostConstruct
-    private void init() {
+    private void init() throws InterruptedException, ExecutionException {
         if (!init) return;
         long start = System.currentTimeMillis();
         log.info(String.format("Start init hazelcast %s size %s", hazelcastMap.getName(), size));
@@ -58,26 +63,38 @@ public class SearchDeclarationRepository {
         if (size < 1l) return;
         start = System.currentTimeMillis();
         EasyRandom generator = new EasyRandom();
-        Stream.iterate(1, i -> i + 1).limit(size).parallel().forEach(id -> {
-            SearchDeclaration entity = generator.nextObject(SearchDeclaration.class);
-            entity.setId(Long.valueOf(id));
-            entity.setIdStatus(new Random().nextInt(9)+1);
-            entity.setNumber("declaration-"+(id));
-            entity.setAppStatus(new Random().nextInt(9)+1);
-            entity.setAppNumber("application-"+(id));
-            List<LocalDate> dates = new ArrayList<>();
-            dates.add(entity.getAppDate());
-            dates.add(entity.getDeclDate());
-            dates.add(entity.getDeclEndDate());
-            Collections.sort(dates);
-            entity.setAppDate(dates.get(0));
-            entity.setDeclDate(dates.get(1));
-            entity.setDeclEndDate(dates.get(2));
-            entity.setDeclType(String.valueOf(new Random().nextInt(4)+1));
-            hazelcastMap.put(entity.getId(), entity);
-        });
+        log.info(String.format("Start add %s entities in hazelcast %s", size, hazelcastMap.getName()));
+
+        List<Long> aList = LongStream.rangeClosed(1, size).boxed()
+                .collect(Collectors.toList());
+        ForkJoinPool customThreadPool = new ForkJoinPool(32);
+        customThreadPool.submit(
+                () -> aList.parallelStream().forEach(id -> {
+                    generate(id, generator);
+                })).get();
+
+        findOne(size);
         log.info(String.format("Fill hazelcast %s size %s. worked %s ms", hazelcastMap.getName(), size, (System.currentTimeMillis() - start)));
         log.info(String.format("Finish init hazelcast %s", hazelcastMap.getName()));
+    }
+
+    private void generate(long id, EasyRandom generator) {
+        SearchDeclaration entity = generator.nextObject(SearchDeclaration.class);
+        entity.setId(Long.valueOf(id));
+        entity.setIdStatus(new Random().nextInt(9) + 1);
+        entity.setNumber("declaration-" + (id));
+        entity.setAppStatus(new Random().nextInt(9) + 1);
+        entity.setAppNumber("application-" + (id));
+        List<LocalDate> dates = new ArrayList<>();
+        dates.add(entity.getAppDate());
+        dates.add(entity.getDeclDate());
+        dates.add(entity.getDeclEndDate());
+        Collections.sort(dates);
+        entity.setAppDate(dates.get(0));
+        entity.setDeclDate(dates.get(1));
+        entity.setDeclEndDate(dates.get(2));
+        entity.setDeclType(String.valueOf(new Random().nextInt(4) + 1));
+        hazelcastMap.set(entity.getId(), entity);
     }
 
     public List<SearchDeclaration> findAll(SearchDeclarationPageFilter filter) {
@@ -161,7 +178,7 @@ public class SearchDeclarationRepository {
             PagingPredicate pagingPredicate = (PagingPredicate)predicate;
             return String.format(
                     "predicate = %s page = %s pageSize = %s",
-                    pagingPredicate.getPredicate().toString(),
+                    pagingPredicate.getPredicate() != null ? pagingPredicate.getPredicate().toString() : "",
                     pagingPredicate.getPage(),
                     pagingPredicate.getPageSize()
             );

@@ -5,10 +5,12 @@ spring:
     name: "@project.name@"
     description: "@project.description@"
     version: "@project.version@"
+  profiles:
+    active: "@spring.profiles.active@"
 
 hazelcast:
   declaration-map:
-    init: true
+    init: false
     size: 1_000_000
 
 logging.level:
