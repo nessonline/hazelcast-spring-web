@@ -16,7 +16,7 @@ public class HazelcastConfig {
 
     public static final String MAP_SEARCH_DECLARATION_NAME = "declaration-map";
 
-    @Bean
+    @Bean("hazelcastInstance")
     @Profile("server")
     HazelcastInstance hazelcastInstance() {
         Config config = new Config();
@@ -39,7 +39,7 @@ public class HazelcastConfig {
         return clientConfig;
     }
 
-    @Bean
+    @Bean("hazelcastInstance")
     @Profile("client")
     HazelcastInstance hazelcastInstance(ClientConfig clientConfig) {
         return HazelcastClient.newHazelcastClient(clientConfig);
