@@ -22,10 +22,7 @@ import ru.parma.ventslavovich.hazelcast.data.filter.SearchDeclarationPageFilter;
 import javax.annotation.PostConstruct;
 import java.time.LocalDate;
 import java.util.*;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.ForkJoinPool;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
@@ -70,34 +67,13 @@ public class SearchDeclarationRepository {
         long current = System.currentTimeMillis();
         EasyRandom generator = new EasyRandom();
         log.info(String.format("Start generate %s entities in hazelcast %s", size, hazelcastMap.getName()));
-
         List<Long> allList = LongStream.rangeClosed(startId, startId + size - 1).boxed().collect(Collectors.toList());
-        List<List<Long>> partition = Lists.partition(allList, patitionSize);
-        log.info(String.format("Split to %s partition's size %s", partition.size(), patitionSize));
-        ExecutorService executorService = Executors.newWorkStealingPool();
-        AtomicInteger step = new AtomicInteger(0);
         try {
-            partition.forEach(list -> {
-                long stepStart = System.currentTimeMillis();
-                int stepNum = step.incrementAndGet();
-                log.info(String.format("Start partition %s of %s size %s", stepNum, partition.size(), list.size()));
-                List<Callable<Long>> callables = list.stream().map(id -> (Callable<Long>) () -> {
-                    generate(id, generator);
-                    return id;
-                }).collect(Collectors.toList());
-                try {
-                    executorService.invokeAll(callables);
-                } catch (InterruptedException e) {
-                    log.error(e.getMessage());
-                } finally {
-                    log.info(String.format("Finish partition %s of %s size %s. worked %s ms", stepNum, partition.size(), list.size(), (System.currentTimeMillis() - stepStart)));
-                    callables = null;
-                }
-            });
-        } finally {
-            executorService.shutdown();
+            ForkJoinPool customThreadPool = new ForkJoinPool(32);
+            customThreadPool.submit(() -> allList.parallelStream().forEach(id -> generate(id, generator))).get();
+        } catch (Exception e) {
+            log.error(e.getMessage());
         }
-
         log.info(String.format("Finish generate %s entities in hazelcast %s. worked %s ms", size, hazelcastMap.getName(), (System.currentTimeMillis() - current)));
     }
 
