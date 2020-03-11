@@ -3,16 +3,18 @@ package ru.parma.ventslavovich.hazelcast.config;
 import com.hazelcast.client.HazelcastClient;
 import com.hazelcast.client.config.ClientConfig;
 import com.hazelcast.config.Config;
+import com.hazelcast.config.InMemoryFormat;
+import com.hazelcast.config.MapConfig;
 import com.hazelcast.core.Hazelcast;
 import com.hazelcast.core.HazelcastInstance;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Profile;
 import ru.parma.ventslavovich.hazelcast.data.entity.SearchDeclaration;
 import ru.parma.ventslavovich.hazelcast.data.filter.SearchDeclarationComparator;
 
-//@EnableAsync
 public class HazelcastConfig {
+
+    public static final String MAP_SEARCH_DECLARATION_NAME = "declaration-map";
 
     @Bean
     @Profile("server")
@@ -20,6 +22,8 @@ public class HazelcastConfig {
         Config config = new Config();
         config.getGroupConfig().setName("dev");
         config.getNetworkConfig().setPort(5701);
+        MapConfig mapConfig = config.getMapConfig(MAP_SEARCH_DECLARATION_NAME);
+        mapConfig.setInMemoryFormat(InMemoryFormat.OBJECT);
         return Hazelcast.newHazelcastInstance(config);
     }
 
@@ -37,7 +41,6 @@ public class HazelcastConfig {
 
     @Bean
     @Profile("client")
-    @Primary
     HazelcastInstance hazelcastInstance(ClientConfig clientConfig) {
         return HazelcastClient.newHazelcastClient(clientConfig);
     }

@@ -10,10 +10,10 @@ import org.jeasy.random.EasyRandom;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StopWatch;
+import ru.parma.ventslavovich.hazelcast.config.HazelcastConfig;
 import ru.parma.ventslavovich.hazelcast.data.entity.SearchDeclaration;
 import ru.parma.ventslavovich.hazelcast.data.filter.SearchDeclarationFilter;
 import ru.parma.ventslavovich.hazelcast.data.filter.SearchDeclarationFilterSpecification;
@@ -22,16 +22,16 @@ import ru.parma.ventslavovich.hazelcast.data.filter.SearchDeclarationPageFilter;
 import javax.annotation.PostConstruct;
 import java.time.LocalDate;
 import java.util.*;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 
 @Component
 public class SearchDeclarationRepository {
-
-    private static final String MAP_NAME = "declaration-map";
 
     private final IMap<Long, SearchDeclaration> hazelcastMap;
 
@@ -43,9 +43,11 @@ public class SearchDeclarationRepository {
     @Value("${hazelcast.declaration-map.size}")
     private long size;
 
+    private int patitionSize = 100000;
+
     @Autowired
-    public SearchDeclarationRepository(@Qualifier("hazelcastInstance") HazelcastInstance hazelcastInstance) {
-        hazelcastMap = hazelcastInstance.getMap(MAP_NAME);
+    public SearchDeclarationRepository(HazelcastInstance hazelcastInstance) {
+        hazelcastMap = hazelcastInstance.getMap(HazelcastConfig.MAP_SEARCH_DECLARATION_NAME);
         hazelcastMap.addIndex("id", true);
         hazelcastMap.addIndex("idStatus", true);
         hazelcastMap.addIndex("number", true);
@@ -54,28 +56,49 @@ public class SearchDeclarationRepository {
     }
 
     @PostConstruct
-    private void init() throws InterruptedException, ExecutionException {
+    private void init() {
         if (!init) return;
-        long start = System.currentTimeMillis();
         log.info(String.format("Start init hazelcast %s size %s", hazelcastMap.getName(), size));
-        hazelcastMap.clear();
-        log.info(String.format("Clear hazelcast %s. worked %s ms", hazelcastMap.getName(), (System.currentTimeMillis() - start)));
-        if (size < 1l) return;
-        start = System.currentTimeMillis();
-        EasyRandom generator = new EasyRandom();
-        log.info(String.format("Start add %s entities in hazelcast %s", size, hazelcastMap.getName()));
-
-        List<Long> aList = LongStream.rangeClosed(1, size).boxed()
-                .collect(Collectors.toList());
-        ForkJoinPool customThreadPool = new ForkJoinPool(32);
-        customThreadPool.submit(
-                () -> aList.parallelStream().forEach(id -> {
-                    generate(id, generator);
-                })).get();
-
-        findOne(size);
-        log.info(String.format("Fill hazelcast %s size %s. worked %s ms", hazelcastMap.getName(), size, (System.currentTimeMillis() - start)));
+        deleteAll();
+        generate(size);
         log.info(String.format("Finish init hazelcast %s", hazelcastMap.getName()));
+    }
+
+    public void generate(long size) {
+        if (size < 1l) return;
+        long startId = generateId();
+        long current = System.currentTimeMillis();
+        EasyRandom generator = new EasyRandom();
+        log.info(String.format("Start generate %s entities in hazelcast %s", size, hazelcastMap.getName()));
+
+        List<Long> allList = LongStream.rangeClosed(startId, startId + size - 1).boxed().collect(Collectors.toList());
+        List<List<Long>> partition = Lists.partition(allList, patitionSize);
+        log.info(String.format("Split to %s partition's size %s", partition.size(), patitionSize));
+        ExecutorService executorService = Executors.newWorkStealingPool();
+        AtomicInteger step = new AtomicInteger(0);
+        try {
+            partition.forEach(list -> {
+                long stepStart = System.currentTimeMillis();
+                int stepNum = step.incrementAndGet();
+                log.info(String.format("Start partition %s of %s size %s", stepNum, partition.size(), list.size()));
+                List<Callable<Long>> callables = list.stream().map(id -> (Callable<Long>) () -> {
+                    generate(id, generator);
+                    return id;
+                }).collect(Collectors.toList());
+                try {
+                    executorService.invokeAll(callables);
+                } catch (InterruptedException e) {
+                    log.error(e.getMessage());
+                } finally {
+                    log.info(String.format("Finish partition %s of %s size %s. worked %s ms", stepNum, partition.size(), list.size(), (System.currentTimeMillis() - stepStart)));
+                    callables = null;
+                }
+            });
+        } finally {
+            executorService.shutdown();
+        }
+
+        log.info(String.format("Finish generate %s entities in hazelcast %s. worked %s ms", size, hazelcastMap.getName(), (System.currentTimeMillis() - current)));
     }
 
     private void generate(long id, EasyRandom generator) {
@@ -94,7 +117,7 @@ public class SearchDeclarationRepository {
         entity.setDeclDate(dates.get(1));
         entity.setDeclEndDate(dates.get(2));
         entity.setDeclType(String.valueOf(new Random().nextInt(4) + 1));
-        hazelcastMap.set(entity.getId(), entity);
+        hazelcastMap.put(entity.getId(), entity);
     }
 
     public List<SearchDeclaration> findAll(SearchDeclarationPageFilter filter) {
@@ -135,6 +158,11 @@ public class SearchDeclarationRepository {
         return executeAndLog("deleteOne", id, t -> {
             return hazelcastMap.remove(t) != null;
         });
+    }
+
+    public boolean deleteAll() {
+        hazelcastMap.clear();
+        return true;
     }
 
     private Long generateId() {

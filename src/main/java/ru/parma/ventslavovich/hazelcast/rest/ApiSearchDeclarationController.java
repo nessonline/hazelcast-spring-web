@@ -63,4 +63,16 @@ public class ApiSearchDeclarationController {
     public boolean deleteOne(@PathVariable("id") Long id) {
         return service.deleteOne(id);
     }
+
+    @DeleteMapping()
+    @ApiOperation("Удаление декларации соответствия в витрине")
+    public boolean deleteAll() {
+        return service.deleteAll();
+    }
+
+    @PostMapping("/generate/{size}")
+    @ApiOperation("Генерация деклараций соответствия в витрине")
+    public void generate(@PathVariable("size") Long size) {
+        service.generate(size);
+    }
 }

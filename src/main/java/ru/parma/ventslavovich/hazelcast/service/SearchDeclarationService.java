@@ -49,4 +49,12 @@ public class SearchDeclarationService {
         findOne(id);
         return repository.deleteOne(id);
     }
+
+    public boolean deleteAll() {
+        return repository.deleteAll();
+    }
+
+    public void generate(long size) {
+        repository.generate(size);
+    }
 }
