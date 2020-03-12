@@ -9,8 +9,6 @@ import com.hazelcast.core.Hazelcast;
 import com.hazelcast.core.HazelcastInstance;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Profile;
-import ru.parma.ventslavovich.hazelcast.data.entity.SearchDeclaration;
-import ru.parma.ventslavovich.hazelcast.data.filter.SearchDeclarationComparator;
 
 public class HazelcastConfig {
 
@@ -32,8 +30,6 @@ public class HazelcastConfig {
     ClientConfig clientConfig() {
         ClientConfig clientConfig = new ClientConfig();
         clientConfig.getUserCodeDeploymentConfig().setEnabled(true);
-        clientConfig.getUserCodeDeploymentConfig().addClass(SearchDeclaration.class);
-        clientConfig.getUserCodeDeploymentConfig().addClass(SearchDeclarationComparator.class);
         clientConfig.getGroupConfig().setName("dev");
         clientConfig.getNetworkConfig().addAddress("10.50.10.134", "10.50.10.134:5702");
         return clientConfig;

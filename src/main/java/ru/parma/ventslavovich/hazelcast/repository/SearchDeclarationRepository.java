@@ -10,6 +10,7 @@ import org.jeasy.random.EasyRandom;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StopWatch;
@@ -40,10 +41,8 @@ public class SearchDeclarationRepository {
     @Value("${hazelcast.declaration-map.size}")
     private long size;
 
-    private int patitionSize = 100000;
-
     @Autowired
-    public SearchDeclarationRepository(HazelcastInstance hazelcastInstance) {
+    public SearchDeclarationRepository(@Qualifier("hazelcastInstance") HazelcastInstance hazelcastInstance) {
         hazelcastMap = hazelcastInstance.getMap(HazelcastConfig.MAP_SEARCH_DECLARATION_NAME);
         hazelcastMap.addIndex("id", true);
         hazelcastMap.addIndex("idStatus", true);
