@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ~ Copyright (c) 2008-2018, Hazelcast, Inc. All Rights Reserved.
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~ http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+
+<hazelcast xsi:schemaLocation="http://www.hazelcast.com/schema/config hazelcast-config-3.11.xsd"
+           xmlns="http://www.hazelcast.com/schema/config"
+           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+
+  <management-center enabled="${hazelcast.mancenter.enabled}">${hazelcast.mancenter.url}</management-center>
+  <map name="declaration-map">
+       <in-memory-format>OBJECT</in-memory-format>
+       <statistics-enabled>true</statistics-enabled>
+       <cache-deserialized-values>INDEX-ONLY</cache-deserialized-values>
+       <backup-count>1</backup-count>
+       <async-backup-count>0</async-backup-count>
+       <time-to-live-seconds>0</time-to-live-seconds>
+       <max-idle-seconds>0</max-idle-seconds>
+       <eviction-policy>NONE</eviction-policy>
+       <max-size policy="PER_NODE">2147483647</max-size>
+       <eviction-percentage>25</eviction-percentage>
+       <min-eviction-check-millis>100</min-eviction-check-millis>
+       <merge-policy batch-size="100">com.hazelcast.spi.merge.PutIfAbsentMergePolicy</merge-policy>
+       <read-backup-data>false</read-backup-data>
+       <metadata-policy>CREATE_ON_UPDATE</metadata-policy>
+       <hot-restart enabled="false">
+            <fsync>false</fsync>
+       </hot-restart>
+       <map-store enabled="false" initial-mode="LAZY">
+            <write-delay-seconds>0</write-delay-seconds>
+            <write-batch-size>1</write-batch-size>
+       </map-store>
+  </map>
+  <user-code-deployment enabled="true">
+    <class-cache-mode>ETERNAL</class-cache-mode>
+    <provider-mode>LOCAL_AND_CACHED_CLASSES</provider-mode>
+  </user-code-deployment>
+
+</hazelcast>
